@@ -1,0 +1,31 @@
+- name: gather junos facts
+  hosts: all
+  roles:
+    - juniper.junos
+  connection: local
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: "/Users/charlea.fleming/Desktop/py-venv/set-root-password/bin/python3"
+    ansible_public_key: "{{ lookup('file', '/Users/charlea.fleming/Desktop/py-venv/set-root-password/id_rsa.pub') }}"
+  vars_prompt:
+    - name: "USER"
+      prompt: "username"
+      private: no
+    - name: "PASSWD"
+      prompt: "password"
+      private: yes
+  tasks:
+    - name: show junos version
+      juniper_junos_command:
+        host: "{{ ansible_host }}"
+        port: "22"
+        user: "{{ USER }}"
+        passwd: "{{ PASSWD }}"
+        commands:
+          - "show version"
+        format: text
+      register: version
+    - name: print junos version
+      debug:
+        msg: '{{ version.stdout_lines | select("search", "Junos" | replace("Junos: ", "")) | list }}'
+      register: version_compare

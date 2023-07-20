@@ -1,0 +1,64 @@
+---
+- name: Find BGP routing loops on Junos devices
+  hosts: junos_devices
+  gather_facts: no
+
+  tasks:
+    - name: Collect BGP peer information
+      junos_bgp:
+        provider: "{{ netmiko_connection }}"
+        peers:
+          - status
+          - received_prefix_count
+          - advertised_prefix_count
+        gather_subset: all
+      register: bgp_info
+
+    - name: Analyze BGP peer information for routing loops
+      set_fact:
+        bgp_loops: []
+      loop: "{{ bgp_info['peer_list'] }}"
+      vars:
+        bgp_peer: "{{ item['peer_address'] }}"
+      when: item['state'] == 'Established' and item['received_prefix_count'] > item['advertised_prefix_count']
+      loop_control:
+        label: "{{ bgp_peer }}"
+      block:
+        - name: Collect BGP routes for peer
+          junos_command:
+            provider: "{{ netmiko_connection }}"
+            commands: show route protocol bgp {{ bgp_peer }}
+          register: bgp_routes
+
+        - name: Analyze BGP routes for loop
+          set_fact:
+            bgp_loop: {}
+          loop: "{{ bgp_routes['stdout_lines'][0] | default([]) }}"
+          when: item.startswith('B')
+          loop_control:
+            label: "{{ item.split()[1] }}"
+          block:
+            - name: Extract BGP attributes from route
+              set_fact:
+                bgp_route: "{{ item.split()[2:] }}"
+              run_once: true
+
+            - name: Check for BGP loop
+              set_fact:
+                bgp_loop:
+                  peer: "{{ bgp_peer }}"
+                  prefix: "{{ bgp_route[0] }}"
+                  next_hop: "{{ bgp_route[1] }}"
+                  as_path: "{{ bgp_route[2:-1] }}"
+              when: bgp_route[-1] == 'L'
+              run_once: true
+
+        - name: Add BGP loop to list
+          set_fact:
+            bgp_loops: "{{ bgp_loops + [bgp_loop] }}"
+          when: bgp_loop|length > 0
+          run_once: true
+
+    - name: Display BGP routing loops
+      debug:
+        var: bgp_loops

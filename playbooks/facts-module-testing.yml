@@ -1,0 +1,26 @@
+- name: gather facts testing
+  serial: 1
+  gather_facts: false
+  hosts: all
+  roles:
+    - juniper.junos
+
+  vars:
+    ansible_python_interpreter: "/Users/charlea.fleming/Desktop/py-venv/version-testing/ansible/bin/python3"
+    ansible_public_key: "{{ lookup('file', '/Users/charlea.fleming/Desktop/py-venv/version-testing/ansible/id_rsa.pub') }}"
+    #ansible_user: "{{ USER }}"
+    #ansible_ssh_pass: "{{ PASS }}"
+    #ansible_port: "22"
+    #network_os: "junos"
+    #import_modules: true
+  #vars_prompt:
+    #- name: USER
+      #prompt: "username"
+      #private: no
+    #- name: PASS
+      #prompt: "password"
+      #private: yes
+  
+  tasks:
+    - name: gather facts testing
+      script: ./get-facts.py

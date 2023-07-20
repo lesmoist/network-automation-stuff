@@ -1,0 +1,37 @@
+---
+- name: Delete system login format sha1
+  hosts: all
+  roles:
+    - juniper.junos
+  connection: local
+  gather_facts: no
+
+  vars:
+    ansible_python_interpreter: "/Users/charlea.fleming/Desktop/py-venv/remove-sha1/bin/python3"
+    ansible_public_key: "{{ lookup('file', '/Users/charlea.fleming/Desktop/py-venv/remove-sha1/id_rsa.pub') }}"
+
+  vars_prompt:
+    - name: "USER"
+      prompt: "username"
+      private: no
+    - name: "PASSWD"
+      prompt: "password"
+      private: yes
+  
+  tasks:
+    - name: delete sha1
+      juniper_junos_config:
+        host: "{{ ansible_host }}"
+        port: "22"
+        user: "{{ USER }}"
+        passwd: "{{ PASSWD }}"
+        load: set
+        lines:
+          - "delete system login password format sha1"
+        format: text
+        check: true
+        commit: true
+      register: response
+    - name: show
+      debug:
+        var: response
